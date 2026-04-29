@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Entity\Record;
-use App\Entity\StatusLog;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -21,13 +20,7 @@ readonly class RecordService
         $record = new Record();
         $record->setNumber($number);
         $record->setCreatedAt($now);
-        $record->setCurrentStatus($status);
-
-        $statusLog = new StatusLog();
-        $statusLog->setStatus($status);
-        $statusLog->setCreatedAt($now);
-
-        $record->addStatusLog($statusLog);
+        $record->changeStatus($status, $now);
 
         $this->entityManager->persist($record);
         $this->entityManager->flush();
@@ -46,13 +39,7 @@ readonly class RecordService
 
     public function changeStatus(Record $record, string $status): Record
     {
-        $record->setCurrentStatus($status);
-
-        $statusLog = new StatusLog();
-        $statusLog->setStatus($status);
-        $statusLog->setCreatedAt(new DateTimeImmutable());
-
-        $record->addStatusLog($statusLog);
+        $record->changeStatus($status);
 
         $this->entityManager->flush();
 

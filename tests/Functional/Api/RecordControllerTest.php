@@ -3,9 +3,9 @@
 namespace App\Tests\Functional\Api;
 
 use App\Entity\Record;
-use App\Entity\StatusLog;
 use App\Tests\Functional\FunctionalTestCase;
 use DateTimeImmutable;
+use Exception;
 use JsonException;
 
 class RecordControllerTest extends FunctionalTestCase
@@ -53,33 +53,14 @@ class RecordControllerTest extends FunctionalTestCase
         self::assertCount(1, $record->getStatusHistory());
     }
 
-    public function testGetRecordsReturnsPersistedRecords(): void
+    /**
+     * @throws Exception
+     */
+    public function testGetRecords(): void
     {
         // Given:
-        $firstRecord = new Record();
-        $firstRecord->setNumber('REC-001');
-        $firstRecord->setCreatedAt(new DateTimeImmutable());
-        $firstRecord->setCurrentStatus('new');
-
-        $firstStatusLog = new StatusLog();
-        $firstStatusLog->setStatus('new');
-        $firstStatusLog->setCreatedAt(new DateTimeImmutable());
-
-        $firstRecord->addStatusLog($firstStatusLog);
-
-        $secondRecord = new Record();
-        $secondRecord->setNumber('REC-002');
-        $secondRecord->setCreatedAt(new DateTimeImmutable());
-        $secondRecord->setCurrentStatus('processing');
-
-        $secondStatusLog = new StatusLog();
-        $secondStatusLog->setStatus('processing');
-        $secondStatusLog->setCreatedAt(new DateTimeImmutable());
-
-        $secondRecord->addStatusLog($secondStatusLog);
-
-        $this->entityManager->persist($firstRecord);
-        $this->entityManager->persist($secondRecord);
+        $this->createRecordWithStatus('REC-001', 'new', '2025-01-01 10:00:00');
+        $this->createRecordWithStatus('REC-002', 'processing', '2025-01-01 11:00:00');
         $this->entityManager->flush();
 
         // When:
@@ -106,5 +87,48 @@ class RecordControllerTest extends FunctionalTestCase
 
         self::assertContains('REC-001', $numbers);
         self::assertContains('REC-002', $numbers);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function testGetRecordsFiltered(): void
+    {
+        // Given:
+        $this->createRecordWithStatus('REC-NEW', 'new', '2025-01-01 10:00:00');
+        $this->createRecordWithStatus('REC-PROCESSING', 'processing', '2025-01-01 11:00:00');
+        $this->entityManager->flush();
+
+        // When:
+        $this->client->request(
+            'GET',
+            '/api/records?currentStatus=processing',
+            server: [
+                'PHP_AUTH_USER' => 'api',
+                'PHP_AUTH_PW' => 'secret',
+            ]
+        );
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+
+        // Then:
+        self::assertResponseStatusCodeSame(200);
+        self::assertIsArray($responseData);
+        self::assertCount(1, $responseData);
+        self::assertSame('REC-PROCESSING', $responseData[0]['number']);
+        self::assertSame('processing', $responseData[0]['currentStatus']);
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function createRecordWithStatus(string $number, string $status, string $createdAt): void
+    {
+        $record = new Record();
+        $record->setNumber($number);
+        $record->setCreatedAt(new DateTimeImmutable($createdAt));
+        $record->changeStatus($status, new DateTimeImmutable($createdAt));
+
+        $this->entityManager->persist($record);
     }
 }

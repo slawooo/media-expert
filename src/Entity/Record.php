@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\RecordRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -19,7 +20,7 @@ class Record
     private ?string $number = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private ?DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(length: 255)]
     private ?string $currentStatus = null;
@@ -27,7 +28,7 @@ class Record
     /**
      * @var Collection<int, StatusLog>
      */
-    #[ORM\OneToMany(mappedBy: 'record', targetEntity: StatusLog::class, orphanRemoval: true, cascade: ['persist'])]
+    #[ORM\OneToMany(targetEntity: StatusLog::class, mappedBy: 'record', cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'ASC'])]
     private Collection $statusHistory;
 
@@ -53,12 +54,12 @@ class Record
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?DateTimeImmutable
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
 
@@ -100,5 +101,18 @@ class Record
         $this->statusHistory->removeElement($statusLog);
 
         return $this;
+    }
+
+    public function changeStatus(string $status, ?DateTimeImmutable $changedAt = null): void
+    {
+        $changedAt ??= new DateTimeImmutable();
+
+        $this->currentStatus = $status;
+
+        $statusLog = new StatusLog();
+        $statusLog->setStatus($status);
+        $statusLog->setCreatedAt($changedAt);
+
+        $this->addStatusLog($statusLog);
     }
 }

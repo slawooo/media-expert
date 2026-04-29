@@ -2,11 +2,11 @@
 
 namespace App\Controller\Api;
 
-use App\Dto\RecordSearchCriteriaDto;
 use App\Entity\Record;
+use App\Factory\RecordSearchCriteriaFactory;
+use App\Mapper\RecordResponseMapper;
 use App\Repository\RecordRepository;
 use App\Service\RecordService;
-use DateTimeImmutable;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -20,6 +20,8 @@ class RecordController extends AbstractController
     public function __construct(
         private readonly RecordRepository $recordRepository,
         private readonly RecordService $recordService,
+        private readonly RecordResponseMapper $recordResponseMapper,
+        private readonly RecordSearchCriteriaFactory $recordSearchCriteriaFactory,
     ) {
     }
 
@@ -29,27 +31,15 @@ class RecordController extends AbstractController
     #[Route('', name: 'api_record_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $criteria = new RecordSearchCriteriaDto();
-        $criteria->number = $request->query->get('number');
-        $criteria->currentStatus = $request->query->get('currentStatus');
-        $criteria->historicalStatus = $request->query->get('historicalStatus');
-
-        $createdFrom = $request->query->get('createdFrom');
-        if ($createdFrom) {
-            $criteria->createdFrom = new DateTimeImmutable($createdFrom);
-        }
-
-        $createdTo = $request->query->get('createdTo');
-        if ($createdTo) {
-            $criteria->createdTo = new DateTimeImmutable($createdTo);
-        }
-
+        $criteria = $this->recordSearchCriteriaFactory->createFromRequest($request);
         $records = $this->recordRepository->search($criteria);
 
-        return $this->json(array_map(
-            fn (Record $record) => $this->serializeRecord($record),
-            $records,
-        ));
+        $responseData = [];
+        foreach ($records as $record) {
+            $responseData[] = $this->recordResponseMapper->map($record);
+        }
+
+        return $this->json($responseData);
     }
 
     #[Route('/{id}', name: 'api_record_show', methods: ['GET'])]
@@ -64,7 +54,7 @@ class RecordController extends AbstractController
             );
         }
 
-        return $this->json($this->serializeRecord($record, true));
+        return $this->json($this->recordResponseMapper->map($record, true));
     }
 
     #[Route('', name: 'api_record_create', methods: ['POST'])]
@@ -92,7 +82,7 @@ class RecordController extends AbstractController
         $record = $this->recordService->create($number, $status);
 
         return $this->json(
-            $this->serializeRecord($record, true),
+            $this->recordResponseMapper->map($record, true),
             Response::HTTP_CREATED,
         );
     }
@@ -129,7 +119,7 @@ class RecordController extends AbstractController
 
         $record = $this->recordService->update($record, $number);
 
-        return $this->json($this->serializeRecord($record, true));
+        return $this->json($this->recordResponseMapper->map($record, true));
     }
 
     #[Route('/{id}/status', name: 'api_record_change_status', methods: ['PATCH'])]
@@ -164,7 +154,7 @@ class RecordController extends AbstractController
 
         $record = $this->recordService->changeStatus($record, $status);
 
-        return $this->json($this->serializeRecord($record, true));
+        return $this->json($this->recordResponseMapper->map($record, true));
     }
 
     #[Route('/{id}', name: 'api_record_delete', methods: ['DELETE'])]
@@ -182,28 +172,5 @@ class RecordController extends AbstractController
         $this->recordService->delete($record);
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
-    }
-
-    private function serializeRecord(Record $record, bool $withHistory = false): array
-    {
-        $data = [
-            'id' => $record->getId(),
-            'number' => $record->getNumber(),
-            'createdAt' => $record->getCreatedAt()?->format(DATE_ATOM),
-            'currentStatus' => $record->getCurrentStatus(),
-        ];
-
-        if ($withHistory) {
-            $data['statusHistory'] = array_map(
-                static fn ($statusLog) => [
-                    'id' => $statusLog->getId(),
-                    'status' => $statusLog->getStatus(),
-                    'createdAt' => $statusLog->getCreatedAt()?->format(DATE_ATOM),
-                ],
-                $record->getStatusHistory()->toArray(),
-            );
-        }
-
-        return $data;
     }
 }
