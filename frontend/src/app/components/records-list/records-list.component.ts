@@ -21,6 +21,7 @@ export class RecordsListComponent implements OnInit {
   currentPage = signal(1);
   pageSize = signal(5);
   selectedRecord = signal<Record | null>(null);
+  isCreateMode = signal(false);
   showEditPanel = signal(false);
 
   filteredRecords = computed(() => {
@@ -72,21 +73,24 @@ export class RecordsListComponent implements OnInit {
 
   openEditPanel(record: Record): void {
     this.selectedRecord.set(record);
+    this.isCreateMode.set(false);
+    this.showEditPanel.set(true);
+  }
+
+  openCreatePanel(): void {
+    this.selectedRecord.set(null);
+    this.isCreateMode.set(true);
     this.showEditPanel.set(true);
   }
 
   closeEditPanel(): void {
     this.showEditPanel.set(false);
     this.selectedRecord.set(null);
+    this.isCreateMode.set(false);
   }
 
   onRecordSaved(updatedRecord: Record): void {
-    const index = this.records().findIndex(r => r.id === updatedRecord.id);
-    if (index > -1) {
-      const updated = [...this.records()];
-      updated[index] = updatedRecord;
-      this.records.set(updated);
-    }
+    this.loadRecords();
     this.closeEditPanel();
   }
 

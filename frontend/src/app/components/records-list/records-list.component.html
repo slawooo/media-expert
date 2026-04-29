@@ -1,6 +1,9 @@
 <div class="records-container">
   <div class="header">
-    <h1>Records</h1>
+    <div class="title-row">
+      <h1>Records</h1>
+      <button class="btn-add" (click)="openCreatePanel()">Add record</button>
+    </div>
     <input
       type="text"
       placeholder="Search by number or status..."
@@ -68,9 +71,11 @@
     </div>
   }
 
-  @if (showEditPanel() && selectedRecord()) {
+  @if (showEditPanel() && (selectedRecord() || isCreateMode())) {
     <app-edit-panel
-      [record]="selectedRecord()!"
+      [record]="selectedRecord()"
+      [isNew]="isCreateMode()"
+      [panelTitle]="isCreateMode() ? 'Add Record' : 'Edit Record'"
       (close)="closeEditPanel()"
       (save)="onRecordSaved($event)"
     />

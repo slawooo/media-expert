@@ -13,7 +13,9 @@ import './edit-panel.component.css';
   styleUrl: './edit-panel.component.css'
 })
 export class EditPanelComponent implements OnInit {
-  @Input() record!: Record;
+  @Input() record: Record | null = null;
+  @Input() isNew = false;
+  @Input() panelTitle = 'Edit Record';
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<Record>();
 
@@ -25,8 +27,8 @@ export class EditPanelComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit(): void {
-    this.editNumber.set(this.record.number);
-    this.editStatus.set(this.record.currentStatus);
+    this.editNumber.set(this.record?.number ?? '');
+    this.editStatus.set(this.record?.currentStatus ?? '');
   }
 
   onClose(): void {
@@ -42,22 +44,37 @@ export class EditPanelComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
 
-    const updatePromises = [];
-
-    // Update number if changed
-    if (this.editNumber() !== this.record.number) {
-      updatePromises.push(
-        this.apiService.updateRecord(this.record.id, {
-          number: this.editNumber()
-        }).toPromise()
-      );
+    if (this.isNew) {
+      this.apiService.createRecord(this.editNumber(), this.editStatus()).subscribe({
+        next: (createdRecord) => {
+          this.saving.set(false);
+          this.save.emit(createdRecord);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.error.set('Failed to create record');
+          console.error(err);
+        }
+      });
+      return;
     }
 
-    // Update status if changed
-    if (this.editStatus() !== this.record.currentStatus) {
-      updatePromises.push(
-        this.apiService.updateStatus(this.record.id, this.editStatus()).toPromise()
-      );
+    const updatePromises = [];
+
+    if (this.record) {
+      if (this.editNumber() !== this.record.number) {
+        updatePromises.push(
+          this.apiService.updateRecord(this.record.id, {
+            number: this.editNumber()
+          }).toPromise()
+        );
+      }
+
+      if (this.editStatus() !== this.record.currentStatus) {
+        updatePromises.push(
+          this.apiService.updateStatus(this.record.id, this.editStatus()).toPromise()
+        );
+      }
     }
 
     if (updatePromises.length === 0) {
@@ -69,7 +86,9 @@ export class EditPanelComponent implements OnInit {
     Promise.all(updatePromises)
       .then(() => {
         this.saving.set(false);
-        // Fetch updated record to get full details
+        if (!this.record) {
+          return null;
+        }
         return this.apiService.getRecord(this.record.id).toPromise();
       })
       .then((updatedRecord) => {

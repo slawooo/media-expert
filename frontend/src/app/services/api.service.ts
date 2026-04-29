@@ -43,4 +43,12 @@ export class ApiService {
       { headers: this.getHeaders() }
     );
   }
+
+  createRecord(number: string, status: string): Observable<Record> {
+    return this.http.post<Record>(
+      `${this.apiUrl}/records`,
+      { number, status },
+      { headers: this.getHeaders() }
+    );
+  }
 }

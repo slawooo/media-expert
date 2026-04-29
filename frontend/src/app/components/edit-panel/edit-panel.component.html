@@ -1,7 +1,7 @@
 <div class="edit-panel-overlay" (click)="onClose()"></div>
 <div class="edit-panel">
   <div class="panel-header">
-    <h2>Edit Record</h2>
+    <h2>{{ panelTitle }}</h2>
     <button class="btn-close" (click)="onClose()" [disabled]="saving()">
       ✕
     </button>
@@ -34,23 +34,25 @@
       />
     </div>
 
-    <div class="form-group">
-      <label>Created At</label>
-      <div class="form-value">{{ record.createdAt | date: 'short' }}</div>
-    </div>
-
-    @if (record.statusHistory && record.statusHistory.length > 0) {
+    @if (!isNew && record) {
       <div class="form-group">
-        <label>Status History</label>
-        <div class="status-history">
-          @for (entry of record.statusHistory; track entry.id) {
-            <div class="history-entry">
-              <span class="status-badge">{{ entry.status }}</span>
-              <span class="status-date">{{ entry.createdAt | date: 'short' }}</span>
-            </div>
-          }
-        </div>
+        <label>Created At</label>
+        <div class="form-value">{{ record.createdAt | date: 'short' }}</div>
       </div>
+
+      @if (record.statusHistory && record.statusHistory.length > 0) {
+        <div class="form-group">
+          <label>Status History</label>
+          <div class="status-history">
+            @for (entry of record.statusHistory; track entry.id) {
+              <div class="history-entry">
+                <span class="status-badge">{{ entry.status }}</span>
+                <span class="status-date">{{ entry.createdAt | date: 'short' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
     }
   </div>
 
@@ -62,7 +64,7 @@
       @if (saving()) {
         Saving...
       } @else {
-        Save Changes
+        {{ isNew ? 'Create Record' : 'Save Changes' }}
       }
     </button>
   </div>

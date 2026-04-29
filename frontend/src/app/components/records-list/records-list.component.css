@@ -14,10 +14,32 @@
   flex-wrap: wrap;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header h1 {
   margin: 0;
   font-size: 28px;
   color: #333;
+}
+
+.btn-add {
+  padding: 8px 14px;
+  background-color: #198754;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.btn-add:hover {
+  background-color: #146c43;
 }
 
 .search-input {
