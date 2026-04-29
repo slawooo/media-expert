@@ -1,60 +1,111 @@
-# Symfony Docker
+# Recruitment Task API
 
-A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
-with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
+Simple Symfony REST API for managing records with current status and status history.
+The project includes CRUD operations, filtering, basic authentication and automated tests.
 
-Specially tailored for coding agents: ships with a [Dev Container](https://containers.dev/) configuration
-that lets [Claude Code](https://claude.ai/claude-code) (and other AI coding assistants) run in fully autonomous
-mode inside a sandboxed environment.
+## Setup and utility commands
 
-![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
+### Installation
+* `docker compose up -d --build`
+* `docker compose exec --user 1000:1000 php composer install`
+* `docker compose exec --user 1000:1000 php php bin/console doctrine:database:create`
+* `docker compose exec --user 1000:1000 php php bin/console doctrine:migrations:migrate`
 
-## Getting Started
+### Create test database
+* `docker compose exec --user 1000:1000 php php bin/console doctrine:database:create --env=test`
 
-1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
-2. Run `docker compose build --pull --no-cache` to build fresh images
-3. Run `docker compose up --wait` to set up and start a fresh Symfony project
-4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
-5. Run `docker compose down --remove-orphans` to stop the Docker containers.
+### Base URL
+* `https://localhost`
 
-## Features
+A browser or API client may show a warning about the local HTTPS certificate. This is expected in the local development environment.
 
-- Production, development and CI ready
-- Just 1 service by default
-- Super-readable configuration
-- Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://frankenphp.dev/docs/worker/)
-- [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-- Automatic HTTPS (in dev and prod)
-- HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-- Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-- [Vulcain](https://vulcain.rocks) support
-- Native [XDebug](docs/xdebug.md) integration
-- [Hot Reloading](https://frankenphp.dev/docs/hot-reload/)
-- [Dev Container](https://containers.dev/) support, optimized for AI coding agents
-- [AI coding agents](docs/agents.md) with sandboxing out of the box
-- Rootless, slim production image
+### Other utility commands
+* `docker compose exec --user 1000:1000 php bash`
+* `docker compose down`
 
-**Enjoy!**
+### Testing
+* `docker compose exec --user 1000:1000 php php bin/phpunit --testdox`
+* `docker compose exec --user 1000:1000 php php bin/phpunit tests/Unit`
+* `docker compose exec --user 1000:1000 php php bin/phpunit tests/Integration`
+* `docker compose exec --user 1000:1000 php php bin/phpunit tests/Functional`
 
-## Docs
+### CS Fixer
+* `docker compose exec --user 1000:1000 php vendor/bin/php-cs-fixer fix --dry-run --diff`
+* `docker compose exec --user 1000:1000 php vendor/bin/php-cs-fixer fix`
 
-1. [Options available](docs/options.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using MySQL instead of PostgreSQL](docs/mysql.md)
-8. [Using Alpine Linux instead of Debian](docs/alpine.md)
-9. [Using a Makefile](docs/makefile.md)
-10. [Updating the template](docs/updating.md)
-11. [Troubleshooting](docs/troubleshooting.md)
-12. [Using AI Coding Agents](docs/agents.md)
+## API usage
 
-## License
+All `/api/*` endpoints require HTTP Basic Auth.
 
-Symfony Docker is available under the MIT License.
+### Example credentials
+* login: `api`
+* password: `secret`
 
-## Credits
+### Create record
+* `POST /api/records`
 
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+Example payload:
+```json
+{
+  "number": "REC-001",
+  "status": "new"
+}
+```
+
+### Get and filter records
+* `GET /api/records`
+* `GET /api/records?number=REC`
+* `GET /api/records?currentStatus=processing`
+* `GET /api/records?historicalStatus=new`
+* `GET /api/records?createdFrom=2025-01-01 00:00:00&createdTo=2025-12-31 23:59:59`
+
+### Get single record
+* `GET /api/records/{id}`
+
+### Update record
+* `PUT /api/records/{id}`
+
+Example payload:
+```json
+{
+  "number": "REC-001-UPDATED"
+}
+```
+
+### Change record status
+* `PATCH /api/records/{id}/status`
+
+Example payload:
+```json
+{
+  "status": "processing"
+}
+```
+
+### Delete record
+* `DELETE /api/records/{id}`
+
+## Architecture notes
+The project is intentionally simple, but structured so that responsibilities are separated.
+* `Entity` contains the data model and some domain logic.
+* `Repository` contains read/query logic, including filtering by number, dates, current status and historical status.
+* `Service` handles write operations and application flow for CRUD-related use cases.
+* `Controller` exposes REST API endpoints.
+* `Mapper` separates response mapping from HTTP handling logic.
+* `Factory` separates request parsing from repository search logic.
+* Tests are split into unit, integration and functional layers.
+
+In a larger real-world project, I would consider more explicit separation between the domain and infrastructure layers, with a richer domain model and less coupling between domain objects and ORM mapping concerns (e.g. XML mappings instead of attributes).
+
+### Design notes / trade-offs
+* `currentStatus` is stored directly on `Record`, even though it is also represented in status history. This duplicates part of the data, but makes reading/filtering by current status simpler and more efficient.
+* Status values are stored as strings. In a larger project, I would make the allowed statuses explicit in PHP (e.g. as constants, enums or value objects) to avoid arbitrary values.
+* Test database schema is created directly from Doctrine entity metadata in the base test classes. For a production-grade setup, running migrations in tests would be closer to the real deployment flow, but this approach keeps test setup simpler.
+* Authentication is implemented as minimal HTTP Basic Auth to secure the API without introducing unnecessary complexity.
+
+## Task description
+You can find the original task description here: [task.txt](docs/task.txt)
+
+## Additional notes
+This project was bootstrapped using the Symfony Docker template.  
+Original template instructions was moved to [README.symfony.md](README.symfony.md)
