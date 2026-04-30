@@ -1,0 +1,83 @@
+<div class="records-container">
+  <div class="header">
+    <div class="title-row">
+      <h1>Records</h1>
+      <button class="btn-add" (click)="openCreatePanel()">Add record</button>
+    </div>
+    <input
+      type="text"
+      placeholder="Search by number or status..."
+      [(ngModel)]="searchTerm"
+      class="search-input"
+    />
+  </div>
+
+  @if (error()) {
+    <div class="error-message">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading records...</div>
+  } @else if (paginatedRecords().length === 0) {
+    <div class="no-data">No records found</div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="records-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Number</th>
+            <th>Status</th>
+            <th>Created At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of paginatedRecords(); track record.id) {
+            <tr>
+              <td>{{ record.id }}</td>
+              <td>{{ record.number }}</td>
+              <td>{{ record.currentStatus }}</td>
+              <td>{{ record.createdAt | date: 'short' }}</td>
+              <td>
+                <button class="btn-edit" (click)="openEditPanel(record)">
+                  Edit
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <button
+        class="btn-nav"
+        (click)="previousPage()"
+        [disabled]="currentPage() === 1"
+      >
+        Previous
+      </button>
+      <span class="page-info">
+        Page {{ currentPage() }} of {{ totalPages() }}
+      </span>
+      <button
+        class="btn-nav"
+        (click)="nextPage()"
+        [disabled]="currentPage() === totalPages()"
+      >
+        Next
+      </button>
+    </div>
+  }
+
+  @if (showEditPanel() && (selectedRecord() || isCreateMode())) {
+    <app-edit-panel
+      [record]="selectedRecord()"
+      [isNew]="isCreateMode()"
+      [panelTitle]="isCreateMode() ? 'Add Record' : 'Edit Record'"
+      (close)="closeEditPanel()"
+      (save)="onRecordSaved($event)"
+    />
+  }
+</div>
